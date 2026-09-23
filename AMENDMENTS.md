@@ -20,3 +20,18 @@ num_predict 96, num_thread 16 (measured fastest: 33.6 prompt tokens/s vs 26.1 at
 seeds 0 (greedy) and 1 to 5 (samples). Questions are processed sorted by filing, then id, so
 generation can follow the index build. The prompt asks for at most two sentences without working,
 to keep CPU generation near 100 s per question.
+
+## A3, 2026-09-23 15:05 IST: hybrid retrieval (dense + BM25, reciprocal rank fusion)
+
+Trigger: the one-question smoke test (financebench_id_03029, 3M FY2018 capex from the cash-flow
+statement) retrieved 5 chunks from pages 25, 38, 42 and 43 and missed the gold page; the model
+correctly refused. A cash-flow statement is mostly numbers, which dense sentence embeddings rank
+poorly, and the question names its line item in words BM25 matches exactly. Hybrid dense + BM25 is
+the standard production design, so this is adopted on design grounds from one observed failure,
+**before** recall was measured on the 150 questions. Fusion: top 50 from each ranking, reciprocal
+rank fusion with k = 60 (Cormack et al. 2009), final top k = 5 unchanged. Recall@5 is reported for
+dense-only and for hybrid, both measured once. Trivial retrieval baseline uses the dense top-1 cosine.
+The smoke output (results/smoke.jsonl) is not part of the run.
+
+Also fixed from the smoke test: the confidence parser required "Confidence: N" on its own line; the
+model wrote it on the answer's line. Parser now accepts both (tests/test_judge_parse.py).

@@ -13,7 +13,7 @@ from fse.ingest import ROOT
 GEN = ROOT / "results" / "generations.jsonl"
 OUT = ROOT / "results" / "judgements.jsonl"
 LABELS = ("correct", "incorrect", "failed")
-CONF_LINE = re.compile(r"^\s*confidence\s*[:=]\s*(\d{1,3})\s*%?\s*$", re.I | re.M)
+CONF_LINE = re.compile(r"\s*\bconfidence\s*[:=]\s*(\d{1,3})\s*%?\s*\.?\s*$", re.I)   # last thing in the text, own line or not
 
 GRADE = """You grade answers to questions about company financial filings, using FinanceBench's rubric.
 Labels:

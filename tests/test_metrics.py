@@ -42,3 +42,10 @@ def test_aurac_beats_full_coverage_only_when_score_is_informative():
     good = aurac([0.0, 0.1, 0.9, 1.0], correct)
     bad = aurac([1.0, 0.9, 0.1, 0.0], correct)
     assert good > 0.5 > bad
+
+
+def test_rrf_rewards_agreement_between_rankings():
+    from fse.hybrid import rrf
+    # id 7 is 2nd in both lists and must beat ids that top only one list
+    assert rrf([[1, 7, 2], [3, 7, 4]])[0] == 7
+    assert set(rrf([[1], [2]])) == {1, 2}

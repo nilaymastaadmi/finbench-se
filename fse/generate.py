@@ -4,18 +4,20 @@ Resume-safe: every finished question is appended to results/generations.jsonl an
 Settings are fixed by PREREGISTRATION.md; do not change them without an AMENDMENTS.md entry.
 """
 import json
+import os
 import time
 import urllib.request
 
 from fse.ingest import ROOT, load_questions
 from fse.build_index import IDX
-from fse.retrieve import TOP_K, embed_questions, evidence_hit, search
+from fse.hybrid import search as hybrid_search
+from fse.retrieve import TOP_K, embed_questions, evidence_hit
 
 MODEL = "qwen2.5:7b-instruct"
 K_SAMPLES = 5
 SAMPLE_TEMPERATURE = 0.5
 OPTIONS = {"num_ctx": 4096, "num_predict": 96, "num_thread": 16}
-OUT = ROOT / "results" / "generations.jsonl"
+OUT = ROOT / "results" / os.environ.get("FSE_GEN_FILE", "generations.jsonl")
 
 PROMPT = """You are a financial analyst answering a question about one company filing.
 Use only the excerpts below. If they do not contain the information needed, reply exactly:
@@ -61,14 +63,15 @@ def main(limit=None):
         t = time.time()
         while not (IDX / f"{q['doc_name']}.npz").exists():   # the index builds alongside, filing by filing
             time.sleep(15)
-        hits = search(q["doc_name"], qv, TOP_K)
+        hits, dense_top1 = hybrid_search(q["doc_name"], q["question"], qv, TOP_K)
         prompt = build_prompt(q, hits)
         greedy = ollama(prompt, 0.0, 0)
         samples = [ollama(prompt, SAMPLE_TEMPERATURE, s) for s in range(1, K_SAMPLES + 1)]
         rec = {"id": q["financebench_id"], "doc": q["doc_name"], "question": q["question"],
                "gold": q["answer"], "justification": q.get("justification"),
                "question_type": q["question_type"], "question_reasoning": q.get("question_reasoning"),
-               "hits": [{"id": h["id"], "page": h["page"], "score": h["score"]} for h in hits],
+               "hits": [{"id": h["id"], "page": h["page"], "score": h["score"], "bm25": h["bm25"]} for h in hits],
+               "dense_top1": dense_top1,
                "evidence_hit": evidence_hit(hits, q), "context": [h["text"] for h in hits],
                "greedy": greedy, "samples": samples, "seconds": round(time.time() - t, 1)}
         with OUT.open("a", encoding="utf-8") as f:
