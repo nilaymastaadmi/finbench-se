@@ -10,8 +10,7 @@ import urllib.request
 
 from fse.ingest import ROOT, load_questions
 from fse.build_index import IDX
-from fse.hybrid import search as hybrid_search
-from fse.retrieve import TOP_K, embed_questions, evidence_hit
+from fse.retrieve import TOP_K, embed_questions, evidence_hit, search
 
 MODEL = "qwen2.5:7b-instruct"
 K_SAMPLES = 5
@@ -63,14 +62,15 @@ def main(limit=None):
         t = time.time()
         while not (IDX / f"{q['doc_name']}.npz").exists():   # the index builds alongside, filing by filing
             time.sleep(15)
-        hits, dense_top1 = hybrid_search(q["doc_name"], q["question"], qv, TOP_K)
+        hits = search(q["doc_name"], qv, TOP_K)           # dense only: A4 reverted A3's hybrid after measurement
+        dense_top1 = hits[0]["score"]
         prompt = build_prompt(q, hits)
         greedy = ollama(prompt, 0.0, 0)
         samples = [ollama(prompt, SAMPLE_TEMPERATURE, s) for s in range(1, K_SAMPLES + 1)]
         rec = {"id": q["financebench_id"], "doc": q["doc_name"], "question": q["question"],
                "gold": q["answer"], "justification": q.get("justification"),
                "question_type": q["question_type"], "question_reasoning": q.get("question_reasoning"),
-               "hits": [{"id": h["id"], "page": h["page"], "score": h["score"], "bm25": h["bm25"]} for h in hits],
+               "hits": [{"id": h["id"], "page": h["page"], "score": h["score"]} for h in hits],
                "dense_top1": dense_top1,
                "evidence_hit": evidence_hit(hits, q), "context": [h["text"] for h in hits],
                "greedy": greedy, "samples": samples, "seconds": round(time.time() - t, 1)}

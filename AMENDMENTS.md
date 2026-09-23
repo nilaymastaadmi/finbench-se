@@ -35,3 +35,24 @@ The smoke output (results/smoke.jsonl) is not part of the run.
 
 Also fixed from the smoke test: the confidence parser required "Confidence: N" on its own line; the
 model wrote it on the answer's line. Parser now accepts both (tests/test_judge_parse.py).
+
+## A4, 2026-09-23 23:45 IST: A3 reverted, retrieval back to dense-only (the pre-registered design)
+
+A3 promised recall@5 for both designs, measured once. Measured on all 150 questions after 5 questions
+had been generated under hybrid: **dense-only 89 of 150 (59.3%), hybrid 52 of 150 (34.7%), BM25 alone
+39 of 150 (26.0%)**. Hybrid by question type: metrics-generated 9 of 50, domain-relevant 14 of 50,
+novel-generated 29 of 50. No fusion bug: BM25 alone is weak because FinanceBench questions carry long
+instruction boilerplate ("Give a response to the question by relying on the details shown in the
+cash flow statement") that dominates the keyword match, and equal-weight reciprocal rank fusion pulled
+the dense ranking down with it. A3 was adopted from one example; the full measurement contradicts it.
+
+Action: generation restarts from zero with dense-only retrieval, which is what PREREGISTRATION.md
+specified before A3. The 5 hybrid generations and 3 judgements are kept, not deleted, in
+results/discarded_hybrid_A3/ and excluded from every result.
+
+Disclosure: this choice used the gold evidence pages of the same 150 test questions. It cannot favour
+any uncertainty method (all of them see identical retrieved context), but it makes the accuracy and
+recall figures optimistic relative to a design fixed blind. Reported as such.
+
+Lesson recorded for the write-up: a retrieval change adopted from one failure cut evidence recall by
+24.6 points when finally measured on the full set.
