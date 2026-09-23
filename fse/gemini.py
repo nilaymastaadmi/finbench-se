@@ -4,6 +4,7 @@ Only public FinanceBench text is ever sent (the free tier may use inputs for tra
 """
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -23,11 +24,14 @@ def _post(url, body, tries=10):
                 return json.loads(r.read())
         except urllib.error.HTTPError as e:
             if e.code in (429, 500, 502, 503, 504) and attempt < tries - 1:
-                time.sleep(min(60, 4 * 2 ** attempt))
+                wait = min(60, 4 * 2 ** attempt)
+                print(f"[gemini] HTTP {e.code}, retry {attempt + 1} in {wait}s", file=sys.stderr, flush=True)
+                time.sleep(wait)
                 continue
             raise RuntimeError(f"Gemini HTTP {e.code}: {e.read()[:300]!r}") from e
-        except (urllib.error.URLError, TimeoutError):
+        except (urllib.error.URLError, TimeoutError) as e:
             if attempt < tries - 1:
+                print(f"[gemini] {type(e).__name__}, retry {attempt + 1}", file=sys.stderr, flush=True)
                 time.sleep(4 * 2 ** attempt)
                 continue
             raise
