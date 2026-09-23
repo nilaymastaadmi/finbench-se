@@ -4,12 +4,13 @@ Per-filing indexes match FinanceBench's "single vector store" setting: retrieval
 restricted to the filing the question is about. Safe to re-run: finished filings are skipped.
 """
 import json
+import os
 import sys
 import time
 
 import numpy as np
 
-from fse.gemini import embed
+from fse.embedder import embed_passages
 from fse.ingest import ROOT, chunks_for, load_questions
 
 IDX = ROOT / "data" / "index"
@@ -20,12 +21,13 @@ def build(doc):
     if npz.exists() and meta.exists():
         return "cached"
     chunks = chunks_for(doc)
-    vecs = np.asarray(embed([c["text"] for c in chunks], "RETRIEVAL_DOCUMENT"), dtype=np.float32)
-    vecs /= np.linalg.norm(vecs, axis=1, keepdims=True)
+    vecs = np.asarray(embed_passages([c["text"] for c in chunks]), dtype=np.float32)
     with meta.open("w", encoding="utf-8") as f:
         for c in chunks:
             f.write(json.dumps(c) + "\n")
-    np.savez_compressed(npz, vecs=vecs)
+    tmp = IDX / f"{doc}.tmp.npz"
+    np.savez_compressed(tmp, vecs=vecs)
+    os.replace(tmp, npz)                                   # atomic: generate.py polls for this file
     return f"{len(chunks)} chunks"
 
 

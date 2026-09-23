@@ -6,7 +6,7 @@ import faiss
 import numpy as np
 
 from fse.build_index import IDX
-from fse.gemini import embed
+from fse.embedder import embed_queries
 
 TOP_K = 5
 
@@ -30,7 +30,7 @@ def search(doc, query_vec, k=TOP_K):
 
 
 def embed_questions(questions):
-    return embed([q["question"] for q in questions], "RETRIEVAL_QUERY")
+    return embed_queries([q["question"] for q in questions])
 
 
 def evidence_hit(hits, question):
