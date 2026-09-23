@@ -1,0 +1,9 @@
+.venv/
+data/pdfs/
+data/index/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/*.jsonl
+data/*.tsv
+data/*.log
