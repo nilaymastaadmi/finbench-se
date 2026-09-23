@@ -71,7 +71,11 @@ def main():
     recs = [json.loads(line) for line in GEN.open(encoding="utf-8")]
     for n, rec in enumerate(r for r in recs if r["id"] not in done):
         t = time.time()
-        out = {"id": rec["id"], "grade": grade(rec), "clusters": cluster(rec)}
+        try:
+            out = {"id": rec["id"], "grade": grade(rec), "clusters": cluster(rec)}
+        except (ValueError, AssertionError, KeyError, RuntimeError) as e:   # retried on the next pass
+            print(f"[skip] {rec['id']}: {type(e).__name__}: {str(e)[:160]}", flush=True)
+            continue
         with OUT.open("a", encoding="utf-8") as f:
             f.write(json.dumps(out) + "\n")
         print(f"[{n + 1}] {rec['id']} {out['grade']['label']} clusters={out['clusters']} {time.time() - t:.1f}s",

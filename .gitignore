@@ -9,3 +9,5 @@ data/*.tsv
 data/*.log
 models/
 results/smoke*
+synthetic/
+results_*.log
