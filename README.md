@@ -39,9 +39,57 @@ python -m fse.analyse          # writes results/RESULTS.md
 python -m pytest -q            # every metric test was shown to fail on a planted defect
 ```
 
-## Results
+## Results (run of 2026-09-23/24; every number is in `results/RESULTS.md`, generated)
 
-See `results/RESULTS.md` (generated). Summary written after the run: pending.
+**Provisional until the judge audit** (30 manually labelled answers, pre-registered bar 80% agreement)
+is scored. The 5 questions graded by both the original judge (Gemini) and the final one (Haiku) agree
+5 of 5 on labels.
+
+Accuracy: of 150 questions the 7B model answered **37 correctly (24.7%), 46 incorrectly (30.7%) and
+refused 67 (44.7%)**. The gold evidence page was in the top 5 for 89 of 150 (59.3%). **29 of the 46
+wrong answers had the gold page in context**: the dominant failure is reading the retrieved table, not
+finding it.
+
+Detection, among the 83 answered questions (AUROC for ranking wrong answers above right ones):
+
+| Signal | AUROC | 95% CI |
+|---|---|---|
+| Semantic entropy (primary) | 0.631 | 0.512 to 0.746 |
+| Lexical entropy (exact-match agreement) | 0.635 | 0.519 to 0.749 |
+| Model's stated confidence | 0.622 | 0.520 to 0.722 |
+| Retrieval similarity (trivial) | 0.608 | 0.487 to 0.738 |
+| Answer length (trivial) | 0.486 | 0.358 to 0.618 |
+| Laya grounding check (exploratory, local) | 0.652 | 0.531 to 0.771 |
+
+Hypotheses:
+- **H1 detection: PASS, narrowly.** Semantic entropy beats chance; the CI's lower bound is 0.512.
+- **H2 semantic beats lexical: FAIL.** Difference -0.004 (paired CI -0.102 to +0.094). With short,
+  numeric answers, meaning clusters and exact-match clusters are almost the same thing.
+- **H3 beats the trivial baselines:** above both on the point estimate, but the gap to retrieval
+  similarity (+0.023, CI -0.140 to +0.182) is inside the noise, so no skill is demonstrated beyond
+  that baseline. It does beat answer length (+0.145, CI +0.006 to +0.276).
+
+The main finding: **15 of the 46 wrong answers were repeated identically by all 5 samples** (entropy
+0). A sampling-consistency method cannot see a model that is consistently wrong, and in RAG the same
+misleading excerpt produces the same wrong answer every time. On the pre-registered secondary metric
+(correct against everything else, all 150), the model's own stated confidence reaches AUROC 0.832 while
+semantic entropy falls to 0.458, because a refusal repeated 5 times looks certain to an entropy measure.
+For a support assistant deciding when to hand off to a person, this says consistency alone is the wrong
+signal; grounding checks and calibrated confidence belong beside it.
+
+Prediction scorecard (written before the run): 3 hit, 3 missed.
+
+| # | Prediction | Result | |
+|---|---|---|---|
+| 1 | 25% to 45% correct | 24.7% | missed, just below |
+| 2 | SE AUROC 0.60 to 0.72 | 0.631 | hit |
+| 3 | SE beats lexical by under 0.05 | -0.004, it did not beat it at all | hit (no gain) |
+| 4 | a trivial baseline within 0.10 of SE | retrieval similarity, 0.023 below | hit |
+| 5 | recall 40% to 70%, and most wrong answers are retrieval misses | 59.3%; but only 17 of 46 were | half missed |
+| 6 | answering the 50% lowest-entropy questions adds 10+ points | 44.6% to 52.4% (+7.8) | missed |
+
+Caveat on 6: 36 of the 83 answered questions tie at entropy 0, so which of them fall inside a 50%
+cutoff is arbitrary; AUROC handles ties, selective accuracy does not.
 
 ## Limitations
 

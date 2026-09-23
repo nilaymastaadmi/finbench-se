@@ -76,7 +76,7 @@ def main():
                f"failed to answer {labels['failed']} "
                f"({labels['correct'] / n_all:.1%} / {labels['incorrect'] / n_all:.1%} / {labels['failed'] / n_all:.1%}).")
     hits = sum(r["hit"] for r in rows)
-    out.append(f"Evidence-page recall@5 (hybrid): {hits} of {n_all} ({hits / n_all:.1%}).")
+    out.append(f"Evidence-page recall@5 (dense, A4): {hits} of {n_all} ({hits / n_all:.1%}).")
     miss_wrong = sum(1 for r in ans if r["label"] == "incorrect" and not r["hit"])
     if labels["incorrect"]:
         out.append(f"Incorrect answers whose top 5 missed every gold page: {miss_wrong} of {labels['incorrect']}.")
