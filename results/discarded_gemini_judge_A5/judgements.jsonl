@@ -1,0 +1,5 @@
+{"id": "financebench_id_03029", "grade": {"label": "failed", "reason": "The answer states that the information is not available, which matches the definition of a failed response in the rubric."}, "clusters": [1, 1, 1, 1, 1]}
+{"id": "financebench_id_04672", "grade": {"label": "failed", "reason": "The answer states that the information is not available in the provided excerpts, which is a refusal to provide the requested value."}, "clusters": [1, 1, 1, 1, 1]}
+{"id": "financebench_id_00499", "grade": {"label": "failed", "reason": "The answer states that the information is not available, which matches the definition of the 'failed' label."}, "clusters": [1, 1, 2, 1, 2]}
+{"id": "financebench_id_01226", "grade": {"label": "incorrect", "reason": "The answer fails to mention the specific one-off charges such as litigation and PFAS-related impairments that the gold answer identifies as the primary drivers of the margin decrease."}, "clusters": [1, 2, 1, 1, 3]}
+{"id": "financebench_id_01865", "grade": {"label": "failed", "reason": "The answer states that the information is not available, which matches the definition of a failed response."}, "clusters": [1, 1, 1, 1, 1]}

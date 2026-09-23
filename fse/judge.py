@@ -1,18 +1,21 @@
 """Grade each greedy answer (FinanceBench's 3 labels) and cluster each question's samples by meaning.
 
-The judge (Gemini) is a different model family from the generator (Qwen). Grading never sees the
-samples; clustering never sees the gold answer. Resume-safe via results/judgements.jsonl.
+The judge (Claude Haiku 4.5, AMENDMENTS.md A5) is a different model family from the generator (Qwen).
+Grading never sees the samples; clustering never sees the gold answer. Resume-safe via results/judgements.jsonl.
 """
 import json
 import re
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
-from fse.gemini import generate
+from fse.claude_cli import MODEL, generate
 from fse.ingest import ROOT
 
 GEN = ROOT / "results" / "generations.jsonl"
 OUT = ROOT / "results" / "judgements.jsonl"
 LABELS = ("correct", "incorrect", "failed")
+_LOCK = threading.Lock()
 CONF_LINE = re.compile(r"\s*\bconfidence\s*[:=]\s*(\d{1,3})\s*%?\s*\.?\s*$", re.I)   # last thing in the text, own line or not
 
 GRADE = """You grade answers to questions about company financial filings, using FinanceBench's rubric.
@@ -66,20 +69,23 @@ def cluster(rec):
     return groups
 
 
-def main():
+def _one(rec):
+    t = time.time()
+    try:
+        out = {"id": rec["id"], "judge": MODEL, "grade": grade(rec), "clusters": cluster(rec)}
+    except (ValueError, AssertionError, KeyError, RuntimeError) as e:   # retried on the next pass
+        print(f"[skip] {rec['id']}: {type(e).__name__}: {str(e)[:160]}", flush=True)
+        return
+    with _LOCK, OUT.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(out) + "\n")
+    print(f"{rec['id']} {out['grade']['label']} clusters={out['clusters']} {time.time() - t:.1f}s", flush=True)
+
+
+def main(workers=3):
     done = {json.loads(line)["id"] for line in OUT.open(encoding="utf-8")} if OUT.exists() else set()
-    recs = [json.loads(line) for line in GEN.open(encoding="utf-8")]
-    for n, rec in enumerate(r for r in recs if r["id"] not in done):
-        t = time.time()
-        try:
-            out = {"id": rec["id"], "grade": grade(rec), "clusters": cluster(rec)}
-        except (ValueError, AssertionError, KeyError, RuntimeError) as e:   # retried on the next pass
-            print(f"[skip] {rec['id']}: {type(e).__name__}: {str(e)[:160]}", flush=True)
-            continue
-        with OUT.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(out) + "\n")
-        print(f"[{n + 1}] {rec['id']} {out['grade']['label']} clusters={out['clusters']} {time.time() - t:.1f}s",
-              flush=True)
+    todo = [r for r in map(json.loads, GEN.open(encoding="utf-8")) if r["id"] not in done]
+    with ThreadPoolExecutor(workers) as ex:
+        list(ex.map(_one, todo))
 
 
 if __name__ == "__main__":

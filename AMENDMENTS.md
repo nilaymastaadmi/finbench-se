@@ -56,3 +56,15 @@ recall figures optimistic relative to a design fixed blind. Reported as such.
 
 Lesson recorded for the write-up: a retrieval change adopted from one failure cut evidence recall by
 24.6 points when finally measured on the full set.
+
+## A5, 2026-09-24 03:55 IST: judge gemini-3-flash-preview -> claude-haiku-4-5-20251001 (Claude Code CLI)
+
+All 150 generations finished at 03:47 (150 of 150, 5 samples each, 0 empty). The judge had graded
+only 5: the Gemini free tier answered HTTP 429 "generate_content_free_tier_requests, limit: 20, model:
+gemini-3-flash", a 20-requests-per-day cap, against the 300 calls the study needs. Replacement judge:
+Claude Haiku 4.5 through the Claude Code CLI (the transport market-query-agent used), every tool and
+MCP server disabled, one turn. It is still a different model family from the Qwen generator. Temperature
+is not settable through the CLI (API default); the pre-registered temperature 0 therefore does not hold
+for the judge, which is why the manual audit matters. Prompts are unchanged. The 5 Gemini judgements
+are kept in results/discarded_gemini_judge_A5/ and compared with Haiku's on the same 5 questions.
+No judged aggregate had been computed or viewed before this change.
