@@ -68,3 +68,14 @@ is not settable through the CLI (API default); the pre-registered temperature 0 
 for the judge, which is why the manual audit matters. Prompts are unchanged. The 5 Gemini judgements
 are kept in results/discarded_gemini_judge_A5/ and compared with Haiku's on the same 5 questions.
 No judged aggregate had been computed or viewed before this change.
+
+## A6, 2026-09-24: the 30-answer audit was run by a third model family, not by hand
+
+PREREGISTRATION.md says the author hand-labels a stratified random 30 answers blind to the judge. The
+labels now in results/audit_sheet.csv were produced by Codex (OpenAI) through the local model bridge,
+scored with `python -m fse.audit score codex` (results/AUDIT.md): **29 of 30 agree with the Claude Haiku
+judge (97%)**. 20 of the 30 sampled answers are refusals, which both label "failed" trivially; on the
+10 answered items agreement is **9 of 10** (the one disagreement, financebench_id_00215: Codex correct,
+judge incorrect). This is a cross-model check (Qwen generator, Claude judge, OpenAI auditor), not the
+pre-registered manual audit, which remains pending. `python -m fse.audit sheet` regenerates the blank
+sheet for it; the Codex-labelled copy stays in git history.

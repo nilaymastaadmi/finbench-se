@@ -1,6 +1,6 @@
 # Can a RAG system tell when it is about to be wrong?
 
-A retrieval-augmented generation (RAG) pipeline over 84 SEC filings answers FinanceBench's 150
+A retrieval-augmented generation (RAG) pipeline over 84 company filings answers FinanceBench's 150
 open questions with an open 7B model on a laptop CPU. The study asks whether **semantic entropy**
 (Farquhar, Kossen, Kuhn and Gal, *Nature* 2024) flags the answers that are wrong, so a system could
 abstain and hand the question to a person instead of shipping a fluent error, and whether it beats
@@ -14,11 +14,11 @@ never typed: see `results/RESULTS.md`.
 
 | Stage | Choice | Why |
 |---|---|---|
-| Corpus | FinanceBench open sample: 150 questions, 84 filings, 12,013 pages (Islam et al. 2023, arXiv 2311.11944) | Real 10-K/10-Q text, gold answers and gold evidence pages |
+| Corpus | FinanceBench open sample: 150 questions, 84 filings, 12,013 pages (Islam et al. 2023, arXiv 2311.11944) | Real 10-K, 10-Q, 8-K and earnings-report text, gold answers and gold evidence pages |
 | Chunking | 1,200 characters, 200 overlap, each chunk tagged with its page | Retrieval can be scored against the gold evidence page |
-| Retrieval | Hybrid: `bge-small-en-v1.5` dense (FAISS) + BM25, reciprocal rank fusion, top 5, restricted to the question's filing | Dense embeddings miss numeric tables; BM25 matches line-item words (amendment A3) |
+| Retrieval | Dense: `bge-small-en-v1.5` (FAISS), top 5, restricted to the question's filing | The pre-registered design. A hybrid dense + BM25 retriever (amendment A3) cut evidence recall from 59.3% to 34.7% on the full set and was reverted (amendment A4) |
 | Generator | Qwen2.5-7B-Instruct, local via Ollama: 1 greedy answer + 5 samples at T = 0.5 | Open weights, fixed seeds, reproducible offline |
-| Judge | Gemini 3 Flash, a different model family, FinanceBench's labels: correct / incorrect / failed to answer | Avoids a model grading itself; audited against manual labels |
+| Judge | Claude Haiku 4.5 via the Claude Code CLI, tools disabled (amendment A5; the Gemini free tier allowed 20 calls a day), FinanceBench's labels: correct / incorrect / failed to answer | A different model family from the generator, so no model grades itself; a cross-model audit by Codex agreed on 29 of 30 (9 of 10 answered, amendment A6); the manual audit is pending |
 | Uncertainty | Discrete semantic entropy over meaning clusters of the 5 samples | Black-box: needs only sampled text |
 
 Baselines: lexical entropy (exact-match clusters), the model's own stated confidence, retrieval
@@ -33,7 +33,7 @@ uv pip install sentence-transformers faiss-cpu pymupdf scikit-learn rank-bm25 py
 # data: FinanceBench open-source jsonl files + the 84 referenced PDFs (see data/pdf_sha256_16.json)
 python -m fse.build_index      # ~90 min on a 16-thread laptop CPU
 python -m fse.generate         # ~100 s per question with Ollama qwen2.5:7b-instruct
-python -m fse.judge            # needs GEMINI_API_KEY; public data only
+python -m fse.judge            # needs the Claude Code CLI signed in; public data only
 python -m fse.laya_score       # optional, needs the local Laya daemon
 python -m fse.analyse          # writes results/RESULTS.md
 python -m pytest -q            # every metric test was shown to fail on a planted defect
@@ -41,8 +41,8 @@ python -m pytest -q            # every metric test was shown to fail on a plante
 
 ## Results (run of 2026-09-23/24; every number is in `results/RESULTS.md`, generated)
 
-**Provisional until the judge audit** (30 manually labelled answers, pre-registered bar 80% agreement)
-is scored. The 5 questions graded by both the original judge (Gemini) and the final one (Haiku) agree
+**Provisional until the manual judge audit** (30 hand-labelled answers, pre-registered bar 80%
+agreement). A cross-model audit by Codex agreed with the judge on 29 of 30 (9 of 10 answered; A6). The 5 questions graded by both the original judge (Gemini) and the final one (Haiku) agree
 5 of 5 on labels.
 
 Accuracy: of 150 questions the 7B model answered **37 correctly (24.7%), 46 incorrectly (30.7%) and
@@ -69,9 +69,9 @@ Hypotheses:
   similarity (+0.023, CI -0.140 to +0.182) is inside the noise, so no skill is demonstrated beyond
   that baseline. It does beat answer length (+0.145, CI +0.006 to +0.276).
 
-The main finding: **15 of the 46 wrong answers were repeated identically by all 5 samples** (entropy
-0). A sampling-consistency method cannot see a model that is consistently wrong, and in RAG the same
-misleading excerpt produces the same wrong answer every time. On the pre-registered secondary metric
+The main finding: **on 15 of the 46 wrong answers all 5 samples agreed** (entropy 0). A
+sampling-consistency method cannot see a model that is consistently wrong, and in RAG the model sees
+the same excerpts on every sample, so a misreading (or a misleading excerpt) repeats every time. On the pre-registered secondary metric
 (correct against everything else, all 150), the model's own stated confidence reaches AUROC 0.832 while
 semantic entropy falls to 0.458, because a refusal repeated 5 times looks certain to an entropy measure.
 For a support assistant deciding when to hand off to a person, this says consistency alone is the wrong
@@ -97,7 +97,8 @@ cutoff is arbitrary; AUROC handles ties, selective accuracy does not.
   methods are not distinguishable, and the paired intervals say which ones are.
 - One generator, one retrieval setting, one run. A 7B model on CPU with five excerpts is far weaker
   than FinanceBench's GPT-4-Turbo rows; the question is detection, not accuracy.
-- The judge is an LLM; its agreement with manual labels on 30 answers is reported, not assumed.
+- The judge is an LLM. A third model family (Codex) agreed with it on 29 of 30 sampled answers, but 20
+  of those were easy refusals (9 of 10 on answered items); the pre-registered manual audit is pending.
 - Semantic clustering is done in one judge call per question rather than pairwise entailment checks,
   a declared deviation from the paper.
 
